@@ -1,77 +1,112 @@
-# filename: telegram_sender.py
+# filename: proxy_sender_inline.py
 
 import os
 import requests
 import random
-import re
+import json
+from datetime import datetime
+import jdatetime
 
+# --- تنظیمات اصلی ---
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 CHAT_ID = os.environ.get('CHAT_ID')
 PROXY_FILE = 'telegram_proxies.txt'
-PROXY_COUNT_TO_SEND = 15
+PROXY_COUNT_TO_SEND = 16 # بهتر است عددی زوج باشد تا دکمه‌ها مرتب باشند
 
-def escape_markdown_v2(text):
-    """Escapes special characters for Telegram's MarkdownV2 parse mode."""
-    # لیست کاراکترهایی که باید در MarkdownV2 فرار داده شوند
-    escape_chars = r'[_*\[\]()~`>#+\-=|{}.!]'
-    return re.sub(f'({escape_chars})', r'\\\1', text)
+def create_message_header():
+    """هدر زیبا و سفارشی با تاریخ و زمان فعلی ایجاد می‌کند."""
+    
+    # دریافت زمان و تاریخ فعلی
+    now = datetime.now()
+    jalali_date = jdatetime.datetime.fromgregorian(datetime=now).strftime('%Y/%m/%d')
+    current_time = now.strftime('%H:%M:%S')
 
-def send_message_to_telegram(proxies):
-    """Sends a formatted list of MTProto proxies using MarkdownV2."""
+    # متن هدر با جایگزینی‌های لازم
+    # از یک فونت فانتزی برای Proxyfig استفاده کردیم
+    header = f"""
+╭⋟────𓄂ꪴꪰ𓆃────╮
+ | 𓐄𓐅𓐆𓐇 PЯӨXYFĪG 𓐇𓐆𓐅𓐄 ⁮⁮⁮|
+╰────────────⋞╯
+
+     💀PʀᴏxʏSᴋᴜʟʟ💀 
+❚⫘⫘⫘⫘⫘⫘⫘❚
+        ☠️MTProto II☠️ 
+            
+▬▭▬▭𓐄🧌𓐄▭▬▭▬
+{current_time} 𓍯 {jalali_date}
+"""
+    return header
+
+def create_inline_keyboard(proxies):
+    """لیستی از دکمه‌های شیشه‌ای برای پروکسی‌ها ایجاد می‌کند."""
+    keyboard = []
+    row = []
+    # به هر پروکسی یک ایموجی و شماره اختصاص می‌دهیم
+    for i, proxy_url in enumerate(proxies):
+        button = {
+            'text': f'🟢 اتصال {i + 1}',
+            'url': proxy_url
+        }
+        row.append(button)
+        # هر ردیف شامل ۲ دکمه خواهد بود
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    
+    # اگر تعداد پروکسی‌ها فرد باشد، دکمه آخر را در یک ردیف جدا قرار می‌دهیم
+    if row:
+        keyboard.append(row)
+        
+    return {'inline_keyboard': keyboard}
+
+
+def send_proxies_to_telegram(proxies):
+    """پیام را به همراه دکمه‌های شیشه‌ای به تلگرام ارسال می‌کند."""
     if not BOT_TOKEN or not CHAT_ID:
-        print("Error: BOT_TOKEN or CHAT_ID is not set in GitHub Secrets.")
+        print("❌ خطا: BOT_TOKEN یا CHAT_ID در متغیرهای محیطی (یا GitHub Secrets) تنظیم نشده است.")
         exit(1)
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     
-    message_parts = []
-    for p in proxies:
-        # ✅✅✅ کار اصلی اینجاست: لینک پروکسی را escape می‌کنیم
-        escaped_proxy_url = escape_markdown_v2(p)
-        # سپس لینک escape شده را در فرمت MarkdownV2 قرار می‌دهیم
-        message_parts.append(f"💠 [اتصال به پروکسی]({escaped_proxy_url})")
-    
-    header = "🚀 *لیست پروکسی‌های فعال و جدید MTProto*\n\n"
-    footer = "\n\n⭐️ @proxyfig" # آیدی کانال خود را جایگزین کنید
-    
-    message_body = "\n\n".join(message_parts)
-    final_message = header + message_body + footer
+    message_text = create_message_header()
+    reply_markup = create_inline_keyboard(proxies)
     
     payload = {
         'chat_id': CHAT_ID,
-        'text': final_message,
-        # ✅✅✅ تغییر مهم: استفاده از MarkdownV2
-        'parse_mode': 'MarkdownV2',
+        'text': message_text,
+        # ✅✅✅ مهم‌ترین بخش: ارسال دکمه‌های شیشه‌ای
+        'reply_markup': json.dumps(reply_markup),
         'disable_web_page_preview': True
     }
     
     try:
         response = requests.post(url, json=payload, timeout=20)
-        response.raise_for_status() # این خط اگر کد وضعیت خطا باشد، استثنا ایجاد می‌کند
-        print(f"✅ Successfully sent {len(proxies)} MTProto proxies to the channel.")
+        response.raise_for_status()
+        print(f"✅ با موفقیت {len(proxies)} پروکسی به صورت دکمه‌ای به کانال ارسال شد.")
     except requests.exceptions.HTTPError as e:
-        # نمایش متن کامل خطای تلگرام برای دیباگ کردن بهتر
-        print(f"❌ HTTP Error from Telegram: {e.response.status_code} - {e.response.text}")
+        print(f"❌ خطای HTTP از سمت تلگرام: {e.response.status_code} - {e.response.text}")
         exit(1)
     except Exception as e:
-        print(f"❌ An unexpected error occurred: {e}")
+        print(f"❌ یک خطای پیش‌بینی‌نشده رخ داد: {e}")
         exit(1)
 
 def main():
     try:
         with open(PROXY_FILE, 'r', encoding='utf-8') as f:
-            proxies = [line.strip() for line in f if line.strip()]
+            # فقط خطوطی که حاوی 'https://t.me/proxy?' هستند را می‌خوانیم تا مطمئن شویم لینک پروکسی هستند
+            proxies = [line.strip() for line in f if line.strip().startswith('https://t.me/proxy?')]
     except FileNotFoundError:
-        print(f"Error: Proxy file '{PROXY_FILE}' not found.")
+        print(f"❌ خطا: فایل پروکسی '{PROXY_FILE}' پیدا نشد.")
         return
 
     if not proxies:
-        print("Proxy file is empty. No proxies to send.")
+        print("فایل پروکسی خالی است. پروکسی برای ارسال وجود ندارد.")
         return
         
+    # انتخاب تصادفی تعدادی پروکسی برای ارسال
     selected_proxies = random.sample(proxies, min(len(proxies), PROXY_COUNT_TO_SEND))
     
-    send_message_to_telegram(selected_proxies)
+    send_proxies_to_telegram(selected_proxies)
 
 if __name__ == "__main__":
     main()
