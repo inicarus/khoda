@@ -1,4 +1,4 @@
-# filename: proxy_sender_inline.py
+# filename: proxy_sender_final.py
 
 import os
 import requests
@@ -7,11 +7,16 @@ import json
 from datetime import datetime
 import jdatetime
 
-# --- تنظیمات اصلی ---
+# --- ⚙️ تنظیمات اصلی ---
+# این مقادیر را باید در GitHub Secrets یا متغیرهای محیطی سیستم خود تنظیم کنید
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 CHAT_ID = os.environ.get('CHAT_ID')
+
+# نام فایل حاوی پروکسی‌ها
 PROXY_FILE = 'telegram_proxies.txt'
-PROXY_COUNT_TO_SEND = 16 # بهتر است عددی زوج باشد تا دکمه‌ها مرتب باشند
+
+# تعداد پروکسی برای ارسال در هر بار (بهتر است زوج باشد)
+PROXY_COUNT_TO_SEND = 16
 
 def create_message_header():
     """هدر زیبا و سفارشی با تاریخ و زمان فعلی ایجاد می‌کند."""
@@ -21,8 +26,7 @@ def create_message_header():
     jalali_date = jdatetime.datetime.fromgregorian(datetime=now).strftime('%Y/%m/%d')
     current_time = now.strftime('%H:%M:%S')
 
-    # متن هدر با جایگزینی‌های لازم
-    # از یک فونت فانتزی برای Proxyfig استفاده کردیم
+    # متن هدر با فونت فانتزی برای Proxyfig
     header = f"""
 ╭⋟────𓄂ꪴꪰ𓆃────╮
  | 𓐄𓐅𓐆𓐇 PЯӨXYFĪG 𓐇𓐆𓐅𓐄 ⁮⁮⁮|
@@ -31,14 +35,14 @@ def create_message_header():
      💀PʀᴏxʏSᴋᴜʟʟ💀 
 ❚⫘⫘⫘⫘⫘⫘⫘❚
         ☠️MTProto II☠️ 
-            
+           
 ▬▭▬▭𓐄🧌𓐄▭▬▭▬
 {current_time} 𓍯 {jalali_date}
 """
     return header
 
 def create_inline_keyboard(proxies):
-    """لیستی از دکمه‌های شیشه‌ای برای پروکسی‌ها ایجاد می‌کند."""
+    """لیستی از دکمه‌های شیشه‌ای برای پروکسی‌ها در دو ستون ایجاد می‌کند."""
     keyboard = []
     row = []
     # به هر پروکسی یک ایموجی و شماره اختصاص می‌دهیم
@@ -59,7 +63,6 @@ def create_inline_keyboard(proxies):
         
     return {'inline_keyboard': keyboard}
 
-
 def send_proxies_to_telegram(proxies):
     """پیام را به همراه دکمه‌های شیشه‌ای به تلگرام ارسال می‌کند."""
     if not BOT_TOKEN or not CHAT_ID:
@@ -74,8 +77,7 @@ def send_proxies_to_telegram(proxies):
     payload = {
         'chat_id': CHAT_ID,
         'text': message_text,
-        # ✅✅✅ مهم‌ترین بخش: ارسال دکمه‌های شیشه‌ای
-        'reply_markup': json.dumps(reply_markup),
+        'reply_markup': json.dumps(reply_markup), # ارسال دکمه‌های شیشه‌ای
         'disable_web_page_preview': True
     }
     
@@ -91,16 +93,20 @@ def send_proxies_to_telegram(proxies):
         exit(1)
 
 def main():
+    """تابع اصلی برنامه: خواندن پروکسی‌ها، تبدیل فرمت و ارسال."""
     try:
         with open(PROXY_FILE, 'r', encoding='utf-8') as f:
-            # فقط خطوطی که حاوی 'https://t.me/proxy?' هستند را می‌خوانیم تا مطمئن شویم لینک پروکسی هستند
-            proxies = [line.strip() for line in f if line.strip().startswith('https://t.me/proxy?')]
+            # ✅ تغییر کلیدی: خواندن لینک‌های tg:// و تبدیل خودکار آن‌ها
+            proxies = [
+                line.strip().replace('tg://proxy?', 'https://t.me/proxy?') 
+                for line in f if line.strip().startswith('tg://proxy?')
+            ]
     except FileNotFoundError:
         print(f"❌ خطا: فایل پروکسی '{PROXY_FILE}' پیدا نشد.")
         return
 
     if not proxies:
-        print("فایل پروکسی خالی است. پروکسی برای ارسال وجود ندارد.")
+        print("فایل پروکسی خالی است یا هیچ لینک معتبر tg:// در آن پیدا نشد.")
         return
         
     # انتخاب تصادفی تعدادی پروکسی برای ارسال
