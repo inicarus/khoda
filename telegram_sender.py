@@ -6,6 +6,7 @@ import random
 import json
 from datetime import datetime
 import jdatetime
+import pytz
 
 # --- ⚙️ تنظیمات اصلی ---
 # این مقادیر را باید در GitHub Secrets یا متغیرهای محیطی سیستم خود تنظیم کنید
