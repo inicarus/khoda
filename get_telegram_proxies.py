@@ -3,7 +3,6 @@
 import requests
 import re
 
-# ✅✅✅ منابع معتبر و باکیفیت
 TRUSTED_PAGES = [
     "https://aliilapro.github.io/MTProtoProxy/",
     "https://mhditaheri.github.io/ProxyCollector/",
@@ -20,8 +19,9 @@ def scrape_trusted_pages():
     """
     all_proxies = set()
     
-    # الگوی بسیار دقیق برای پیدا کردن فقط لینک‌های کامل و سالم
-    mtproto_pattern = re.compile(r'(https?://t\.me/proxy\?|tg://proxy\?)\S{30,}')
+    # --- ✅✅✅ تغییر نهایی و حیاتی: استفاده از non-capturing group (?:...) ---
+    # این الگو حالا کل لینک پروکسی را برمی‌گرداند، نه فقط قسمت اول آن را.
+    mtproto_pattern = re.compile(r'(?:https?://t\.me/proxy\?|tg://proxy\?)\S{30,}')
     
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -35,11 +35,10 @@ def scrape_trusted_pages():
 
             found_proxies = mtproto_pattern.findall(response.text)
             
-            for proxy in found_proxies:
-                all_proxies.add(proxy.strip())
-            
             if found_proxies:
-                print(f"  -> ✅ Found {len(found_proxies)} valid MTProto links.")
+                print(f"  -> ✅ Found {len(found_proxies)} potential links.")
+                for proxy in found_proxies:
+                    all_proxies.add(proxy.strip())
             else:
                 print(f"  -> ⚠️ No valid proxy links found on this page.")
 
@@ -56,11 +55,12 @@ def main():
 
     if not proxies:
         print("\nCould not find any new MTProto proxies from the trusted sources. Exiting.")
+        # یک فایل خالی ایجاد می‌کنیم تا workflow در مقایسه فایل به مشکل نخورد
+        open(OUTPUT_FILE, 'w').close()
         return
 
     try:
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-            # هر پروکسی در یک خط جدید ذخیره می‌شود
             f.write("\n".join(proxies))
         print(f"\n✅ Successfully saved {len(proxies)} unique MTProto proxy links to '{OUTPUT_FILE}'")
     except IOError as e:
