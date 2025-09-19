@@ -25,25 +25,33 @@ jobs:
 
       - name: Fetch Telegram proxies
         run: python get_telegram_proxies.py
+        
+      # --- ✅ مرحله جدید اضافه شده ---
+      # این اسکریپت صفحه وب را از روی پروکسی‌های جدید می‌سازد
+      - name: Generate HTML page
+        run: python generate_html.py
 
       - name: Commit and push changes
         id: commit_push
         run: |
           git config --global user.name 'GitHub Actions Bot'
-          git config --global user.email 'github-actions[bot@users.noreply.github.com'
-          git add telegram_proxies.txt
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          # --- ✅ تغییر کوچک اینجا ---
+          # حالا هر دو فایل را برای بررسی تغییرات اضافه می‌کنیم
+          git add telegram_proxies.txt index.html
 
           if git diff --staged --quiet; then
             echo "No new Telegram proxies found. Skipping commit and notification."
             echo "changes_found=false" >> $GITHUB_OUTPUT
           else
             echo "New proxies found. Committing and preparing to notify."
-            git commit -m "Auto-update Telegram proxy list"
+            git commit -m "Auto-update Telegram proxy list and deploy to Pages"
             git push
             echo "changes_found=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Send new proxies to Telegram Channel
+        # این مرحله دست‌نخورده باقی می‌ماند و فقط در صورت وجود تغییرات اجرا می‌شود
         if: steps.commit_push.outputs.changes_found == 'true'
         run: python telegram_sender.py
         env:
