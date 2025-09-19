@@ -1,10 +1,9 @@
 # filename: get_telegram_proxies.py
 
 import requests
-from bs4 import BeautifulSoup
 import re
 
-# ✅✅✅ منابع معتبر و باکیفیت که شما معرفی کردید
+# ✅✅✅ منابع معتبر و باکیفیت
 TRUSTED_PAGES = [
     "https://aliilapro.github.io/MTProtoProxy/",
     "https://mhditaheri.github.io/ProxyCollector/",
@@ -21,10 +20,7 @@ def scrape_trusted_pages():
     """
     all_proxies = set()
     
-    # --- تغییر کلیدی و نهایی: الگوی بسیار دقیق‌تر ---
-    # این الگو فقط لینک‌هایی را پیدا می‌کند که بعد از علامت '?' حداقل ۳۰ کاراکتر دیگر داشته باشند.
-    # این کار به طور کامل از پیدا شدن لینک‌های ناقص و خالی جلوگیری می‌کند.
-    # همچنین https را اختیاری کرده‌ایم (http یا https)
+    # الگوی بسیار دقیق برای پیدا کردن فقط لینک‌های کامل و سالم
     mtproto_pattern = re.compile(r'(https?://t\.me/proxy\?|tg://proxy\?)\S{30,}')
     
     headers = {
@@ -55,17 +51,18 @@ def scrape_trusted_pages():
     return sorted(list(all_proxies))
 
 def main():
-    print("\nStarting to scrape trusted pages for GUARANTEED high-quality proxies...")
+    print("\nStarting to scrape trusted pages for high-quality MTProto proxies...")
     proxies = scrape_trusted_pages()
 
     if not proxies:
-        print("\nCould not find any new proxies from the trusted sources. Exiting.")
+        print("\nCould not find any new MTProto proxies from the trusted sources. Exiting.")
         return
 
     try:
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-            f.write("\n\n".join(proxies))
-        print(f"\n✅ Successfully saved {len(proxies)} unique, high-quality proxy links to '{OUTPUT_FILE}'")
+            # هر پروکسی در یک خط جدید ذخیره می‌شود
+            f.write("\n".join(proxies))
+        print(f"\n✅ Successfully saved {len(proxies)} unique MTProto proxy links to '{OUTPUT_FILE}'")
     except IOError as e:
         print(f"Error writing to file: {e}")
 
