@@ -1,4 +1,4 @@
-# filename: proxy_sender_final.py
+# filename: telegram_sender.py
 
 import os
 import requests
@@ -23,9 +23,13 @@ def create_message_header():
     """هدر زیبا و سفارشی با تاریخ و زمان فعلی ایجاد می‌کند."""
     
     # دریافت زمان و تاریخ فعلی
-    now = datetime.now()
-    jalali_date = jdatetime.datetime.fromgregorian(datetime=now).strftime('%Y/%m/%d')
-    current_time = now.strftime('%H:%M:%S')
+    # تنظیم منطقه زمانی تهران
+    tehran_tz = pytz.timezone('Asia/Tehran')
+    now_utc = datetime.now(pytz.utc)
+    now_tehran = now_utc.astimezone(tehran_tz)
+
+    jalali_date = jdatetime.datetime.fromgregorian(datetime=now_tehran).strftime('%Y/%m/%d')
+    current_time = now_tehran.strftime('%H:%M:%S')
 
     # متن هدر با فونت فانتزی برای Proxyfig
     header = f"""
@@ -83,7 +87,7 @@ def send_proxies_to_telegram(proxies):
     }
     
     try:
-        response = requests.post(url, json=payload, timeout=20)
+        response = requests.post(url, json=payload, timeout=30)
         response.raise_for_status()
         print(f"✅ با موفقیت {len(proxies)} پروکسی به صورت دکمه‌ای به کانال ارسال شد.")
     except requests.exceptions.HTTPError as e:
@@ -94,25 +98,36 @@ def send_proxies_to_telegram(proxies):
         exit(1)
 
 def main():
-    """تابع اصلی برنامه: خواندن پروکسی‌ها، تبدیل فرمت و ارسال."""
+    """تابع اصلی برنامه: خواندن پروکسی‌ها، یکسان‌سازی فرمت و ارسال."""
     try:
         with open(PROXY_FILE, 'r', encoding='utf-8') as f:
-            # ✅ تغییر کلیدی: خواندن لینک‌های tg:// و تبدیل خودکار آن‌ها
-            proxies = [
-                line.strip().replace('tg://proxy?', 'https://t.me/proxy?') 
-                for line in f if line.strip().startswith('tg://proxy?')
-            ]
+            all_lines = f.readlines()
+            
+        proxies = []
+        for line in all_lines:
+            line = line.strip()
+            if line: # فقط خطوط غیرخالی را پردازش کن
+                # همه لینک‌ها را به فرمت https تبدیل می‌کنیم که برای دکمه تلگرام بهتر است
+                if line.startswith('tg://proxy?'):
+                    proxies.append(line.replace('tg://proxy?', 'https://t.me/proxy?'))
+                elif line.startswith(('http://t.me/proxy?', 'https://t.me/proxy?')):
+                    # اگر لینک http بود آن را هم به https تبدیل می‌کنیم
+                    proxies.append(line.replace('http://t.me/proxy?', 'https://t.me/proxy?'))
+
     except FileNotFoundError:
         print(f"❌ خطا: فایل پروکسی '{PROXY_FILE}' پیدا نشد.")
         return
 
     if not proxies:
-        print("فایل پروکسی خالی است یا هیچ لینک معتبر tg:// در آن پیدا نشد.")
+        print("فایل پروکسی خالی است یا هیچ لینک معتبر MTProto در آن پیدا نشد.")
         return
         
     # انتخاب تصادفی تعدادی پروکسی برای ارسال
-    selected_proxies = random.sample(proxies, min(len(proxies), PROXY_COUNT_TO_SEND))
+    # مطمئن می‌شویم که تعداد پروکسی‌های درخواستی از تعداد موجود بیشتر نباشد
+    count_to_send = min(len(proxies), PROXY_COUNT_TO_SEND)
+    selected_proxies = random.sample(proxies, count_to_send)
     
+    print(f"Selecting {len(selected_proxies)} random proxies to send...")
     send_proxies_to_telegram(selected_proxies)
 
 if __name__ == "__main__":
