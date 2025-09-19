@@ -21,8 +21,10 @@ def scrape_trusted_pages():
     """
     all_proxies = set()
     
-    # الگو برای پیدا کردن دقیق لینک‌های پروکسی تلگرام
-    mtproto_pattern = re.compile(r'^(tg://proxy\?|https://t\.me/proxy\?)')
+    # --- تغییر اصلی شماره ۱: الگوی Regex بهبود یافته ---
+    # این الگو هر لینکی که با فرمت پروکسی شروع بشه و تا اولین فاصله یا علامت نقل قول ادامه داشته باشه رو پیدا می‌کنه
+    # این باعث میشه لینک‌ها از دل متن ساده هم استخراج بشن
+    mtproto_pattern = re.compile(r'(tg://proxy\?|https://t\.me/proxy\?)[^\s\'\"<>]+')
     
     # استفاده از هدر برای شبیه‌سازی یک مرورگر واقعی
     headers = {
@@ -35,28 +37,25 @@ def scrape_trusted_pages():
             response = requests.get(url, timeout=30, headers=headers)
             response.raise_for_status()
 
-            # استفاده از BeautifulSoup برای تحلیل محتوای HTML صفحه
-            soup = BeautifulSoup(response.content, 'html.parser')
+            # --- تغییر اصلی شماره ۲: جستجو در کل متن صفحه ---
+            # به جای جستجوی تگ‌های <a>، از re.findall برای جستجوی الگو در کل محتوای HTML استفاده می‌کنیم
+            # response.text محتوای خام HTML صفحه است
+            found_proxies = mtproto_pattern.findall(response.text)
             
-            # پیدا کردن تمام تگ‌های لینک <a>
-            link_tags = soup.find_all('a')
+            # اضافه کردن پروکسی‌های پیدا شده به مجموعه اصلی برای حذف موارد تکراری
+            for proxy in found_proxies:
+                all_proxies.add(proxy.strip())
             
-            found_count = 0
-            for tag in link_tags:
-                href = tag.get('href')
-                # بررسی اینکه آیا لینک پیدا شده یک پروکسی معتبر تلگرام است یا نه
-                if href and mtproto_pattern.match(href):
-                    all_proxies.add(href.strip())
-                    found_count += 1
-            
-            if found_count > 0:
-                print(f"  -> ✅ Found {found_count} valid MTProto links.")
+            if found_proxies:
+                print(f"  -> ✅ Found {len(found_proxies)} valid MTProto links.")
             else:
                 print(f"  -> ⚠️ No proxy links found on this page.")
 
-
+        except requests.exceptions.RequestException as e:
+            # مدیریت خطاهای شبکه به شکل دقیق‌تر
+            print(f"  -> ❌ Network error while scraping {url}: {e}")
         except Exception as e:
-            print(f"  -> ❌ Failed to scrape {url}: {e}")
+            print(f"  -> ❌ An unexpected error occurred at {url}: {e}")
     
     return sorted(list(all_proxies))
 
@@ -70,7 +69,8 @@ def main():
 
     try:
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-            f.write("\n".join(proxies))
+            # اضافه کردن یک خط خالی بین هر پروکسی برای خوانایی بهتر
+            f.write("\n\n".join(proxies))
         print(f"\n✅ Successfully saved {len(proxies)} unique, high-quality proxy links to '{OUTPUT_FILE}'")
     except IOError as e:
         print(f"Error writing to file: {e}")
